@@ -38,7 +38,29 @@ using namespace z3;
 /// calling the `collectAndTranslatePath` method which is then trigger the path translation.
 /// This implementation, slightly different from Assignment-1, requires ICFGNode* as the first argument.
 void SSE::reachability(const ICFGEdge* curEdge, const ICFGNode* sink) {
-	
+	visited.insert(curItem);
+	path.push_back(curEdge);
+
+	if (curEdge->getDstNode() == sink){
+		collectAndTranslatePath();
+	}
+	const ICFGNode *dstNode = curEdge->getDstNode();
+	for (const ICFGEdge *succ: dstNode->getOutEdges()){
+		if(succ->isIntraCFGEdge()){
+			reachability(succ, sink);
+		} else if (const callCFGEdge *callEdge = SVFUtil::dyn_cast<CallCFGEdge>(succ)){
+			callStack.push_back(callEdge->getSrcNode());
+			reachability(succ, sink);
+			callStack.pop_back();
+		} else if (const RetICFGNode *retNode = SVFUtil::dyn_cast<RetICFGNode>(succ->getDstNode())){
+			if (!callstack.empty() && (callstack.back() == retNode->getCallICFGNode())){
+				callstack.pop_back();
+				reachability(succ, sink);
+				callstack.push_back(retNode->getCallICFGNode());
+			} else if (callstack.empty()){
+				reachability(succ, sink);
+			}
+	}
 }
 
 /// TODO: collect each path once this method is called during reachability analysis, and
